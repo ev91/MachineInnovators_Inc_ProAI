@@ -61,8 +61,7 @@ def main(experiment: str = "sentiment", train_csv: str | None = None) -> int:
         sklearn_model, vectorizer, metrics = _train_sklearn_model(train_csv)
 
     # Create/ensure experiment only when ready to log (avoids network calls on invalid CSV)
-    # exp_id = get_or_create_experiment(experiment)
-    get_or_create_experiment(experiment)
+    exp_id = get_or_create_experiment(experiment)
     mlflow.set_experiment(experiment)
 
     with mlflow.start_run(experiment_id=exp_id) as run:
