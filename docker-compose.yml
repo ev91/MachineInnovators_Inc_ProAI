@@ -1,0 +1,145 @@
+name: machineinnovatorsinc_proai
+
+volumes:
+  airflow_home: {}
+
+services:
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.16.0
+    command: >-
+      mlflow server --host 0.0.0.0 --port 5000
+      --backend-store-uri sqlite:////mlruns/mlflow.db
+      --artifacts-destination file:///mlruns
+      --serve-artifacts
+    volumes:
+      - ./mlruns:/mlruns
+    ports:
+      - "${MLFLOW_PORT:-5000}:5000"
+    # disabilito healthcheck per non avere rotture nel dev script
+    healthcheck:
+      disable: true
+
+  # ----------------------------------------------------
+  # One-off: inizializza DB Airflow + utente admin
+  # ----------------------------------------------------
+  airflow-init:
+    build:
+      context: .
+      dockerfile: docker/airflow.Dockerfile
+    user: "50000:0"
+    environment:
+      AIRFLOW_HOME: /opt/airflow
+      AIRFLOW__CORE__EXECUTOR: SequentialExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__LOGGING__BASE_LOG_FOLDER: /opt/airflow/logs
+      AIRFLOW__LOGGING__DAG_PROCESSOR_MANAGER_LOG_LOCATION: /opt/airflow/logs/dag_processor_manager/dag_processor_manager.log
+    volumes:
+      - airflow_home:/opt/airflow
+      - ./airflow/dags:/opt/airflow/dags
+      - ./src:/opt/airflow/src
+      - ./data:/opt/airflow/data
+      - ./artifacts:/opt/airflow/artifacts
+    entrypoint: >
+      bash -c '
+        echo "===> [INIT] Migration DB...";
+        airflow db migrate;
+
+        echo "===> [INIT] Create admin user...";
+        airflow users create \
+          --username admin \
+          --firstname admin \
+          --lastname admin \
+          --password admin \
+          --role Admin \
+          --email admin@example.com \
+        || true;
+
+        echo "===> [INIT] Done.";
+      '
+
+
+  # ----------------------------------------------------
+  # Airflow webserver + scheduler
+  # ----------------------------------------------------
+  airflow:
+    build:
+      context: .
+      dockerfile: docker/airflow.Dockerfile
+    user: "50000:0"
+    depends_on:
+      - mlflow
+      - airflow-init
+    environment:
+      AIRFLOW_HOME: /opt/airflow
+      AIRFLOW__CORE__EXECUTOR: SequentialExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__LOGGING__BASE_LOG_FOLDER: /opt/airflow/logs
+      AIRFLOW__LOGGING__DAG_PROCESSOR_MANAGER_LOG_LOCATION: /opt/airflow/logs/dag_processor_manager/dag_processor_manager.log
+      PYTHONPATH: /opt/airflow
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      REGISTERED_MODEL_NAME: Sentiment
+    volumes:
+      - airflow_home:/opt/airflow
+      - ./airflow/dags:/opt/airflow/dags
+      - ./src:/opt/airflow/src
+      - ./data:/opt/airflow/data
+      - ./artifacts:/opt/airflow/artifacts
+    ports:
+      - "${AIRFLOW_PORT:-8080}:8080"
+    command: >
+      bash -lc "
+        airflow webserver --port 8080 --hostname 0.0.0.0 &
+        airflow scheduler
+      "
+
+  # ----------------------------------------------------
+  # FastAPI app (serving modello)
+  # ----------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.app
+    environment:
+      - MODEL_URI=${MODEL_URI:-}
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    command: uvicorn src.serving.app:app --host 0.0.0.0 --port 8000
+    depends_on:
+      - mlflow
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    volumes:
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command: ["--config.file=/etc/prometheus/prometheus.yml"]
+    ports:
+      - "${PROM_PORT:-9090}:9090"
+    depends_on:
+      - app
+
+  pushgateway:
+    image: prom/pushgateway:v1.9.0
+    ports:
+      - "${PUSHGATEWAY_PORT:-9091}:9091"
+    depends_on:
+      - prometheus
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./docker/grafana-datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml:ro
+      - ./docker/grafana-provisioning.yml:/etc/grafana/provisioning/dashboards/dashboard.yml:ro
+      - ./docker/grafana/dashboards:/etc/grafana/dashboards:ro
+
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+
+    depends_on:
+      - prometheus
+
