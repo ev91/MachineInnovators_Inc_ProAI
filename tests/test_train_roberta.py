@@ -1,7 +1,5 @@
 import pandas as pd
 import pytest
-import os
-import pandas as pd
 from types import SimpleNamespace
 import mlflow
 from src.models import train_roberta
@@ -83,9 +81,6 @@ def test_main_with_train_csv_logs(monkeypatch, tmp_path):
     assert any(k in [m[0][0] for m in called.get("log_metric", []) if m] for k in ["train_size"]) or called.get(
         "log_metric"
     )
-
-
-from src.models import train_roberta
 
 
 class DummyRun:
