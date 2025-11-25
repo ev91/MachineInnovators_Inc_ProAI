@@ -4,7 +4,7 @@ import os, shutil, glob, subprocess, json
 from airflow import DAG
 from airflow.models import Variable
 from airflow.operators.python import PythonOperator 
-from airflow.operators.python import PythonOperator BranchPythonOperator
+from airflow.operators.python import BranchPythonOperator
 from airflow.utils import timezone as tz
 
 
