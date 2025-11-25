@@ -22,22 +22,25 @@ import mlflow.sklearn
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import Pipeline
 
 from src.utils.mlflow_utils import get_or_create_experiment, REGISTERED_NAME
 
 
-def _train_sklearn_model(csv_path: str) -> Tuple[object, object, dict]:
+def _train_sklearn_model(csv_path: str) -> Tuple[object, dict]:
     df = pd.read_csv(csv_path)
     if not set(["text", "label"]).issubset(df.columns):
         raise ValueError("train_csv must contain 'text' and 'label' columns")
     texts = df["text"].astype(str).tolist()
     y = df["label"].astype(str).str.lower().tolist()
     vec = TfidfVectorizer(max_features=2048)
-    X = vec.fit_transform(texts)
     clf = LogisticRegression(max_iter=1000)
-    clf.fit(X, y)
+    # Crea un pipeline che include sia il vettorizzatore che il classificatore
+    pipeline = Pipeline([("tfidf", vec), ("clf", clf)])
+    X = texts
+    pipeline.fit(X, y)
     metrics = {"train_size": len(df), "classes": len(set(y))}
-    return clf, vec, metrics
+    return pipeline, metrics
 
 
 def main(experiment: str = "sentiment", train_csv: str | None = None, n_samples: int = 1, dev_suffix: str = "-dev") -> int:
@@ -64,7 +67,7 @@ def main(experiment: str = "sentiment", train_csv: str | None = None, n_samples:
             df = df.head(n_samples)
         df.to_csv(tmp.name, index=False)
 
-        sklearn_model, vectorizer, metrics = _train_sklearn_model(tmp.name)
+        sklearn_model, metrics = _train_sklearn_model(tmp.name)
 
         target_model_name = f"{REGISTERED_NAME}{dev_suffix}"
         with mlflow.start_run() as run:

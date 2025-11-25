@@ -22,10 +22,14 @@ def ingest():
     incoming = glob.glob(os.path.join(DATA_DIR, "incoming", "*.csv"))
     if incoming:
         latest_csv = max(incoming, key=os.path.getmtime)
+        if os.path.exists(CUR):
+            os.remove(CUR)
         shutil.copy(latest_csv, CUR)
         print(f"[ingest] Copiato batch {latest_csv} -> {CUR}")
     else:
         # fallback: riusa l'holdout come batch current per demo
+        if os.path.exists(CUR):
+            os.remove(CUR)
         shutil.copy(HOLDOUT, CUR)
         print(f"[ingest] Nessun incoming: fallback {HOLDOUT} -> {CUR}")
 
@@ -132,19 +136,31 @@ def train_smoke(ti=None):
     env = os.environ.copy()
     env["MLFLOW_TRACKING_URI"] = MLFLOW
     dev_suffix = os.environ.get("REGISTERED_MODEL_DEV_SUFFIX", "-dev")
+    n_samples = os.environ.get("SMOKE_N_SAMPLES", "50")
     # esegui il training dev (script leggero)
-    subprocess.check_call(
-        [
-            "python",
-            "-m",
-            "src.models.train_smoke",
-            "--experiment",
-            "sentiment",
-            "--n_samples",
-            os.environ.get("SMOKE_N_SAMPLES", "1"),
-        ],
-        env=env,
-    )
+    try:
+        result = subprocess.run(
+            [
+                "python",
+                "-m",
+                "src.models.train_smoke",
+                "--experiment",
+                "sentiment",
+                "--n_samples",
+                str(n_samples),
+                f"--dev_suffix={dev_suffix}",
+            ],
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            print(f"[train_smoke] STDOUT:\n{result.stdout}")
+            print(f"[train_smoke] STDERR:\n{result.stderr}")
+            raise subprocess.CalledProcessError(result.returncode, result.args)
+    except subprocess.CalledProcessError as e:
+        print(f"[train_smoke] ERRORE durante l'esecuzione: {e}")
+        raise
     # recupera la versione dev appena registrata
     from mlflow.tracking import MlflowClient
 
@@ -185,20 +201,30 @@ def evaluate_and_promote(ti=None):
 
     env = os.environ.copy()
     env["MLFLOW_TRACKING_URI"] = MLFLOW
-    subprocess.check_call(
-        [
-            "python",
-            "-m",
-            "src.models.evaluate",
-            "--new_model_uri",
-            new_uri,
-            "--eval_csv",
-            HOLDOUT,
-            "--min_improvement",
-            "0.0",
-        ],
-        env=env,
-    )
+    try:
+        result = subprocess.run(
+            [
+                "python",
+                "-m",
+                "src.models.evaluate",
+                "--new_model_uri",
+                new_uri,
+                "--eval_csv",
+                HOLDOUT,
+                "--min_improvement",
+                "0.0",
+            ],
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            print(f"[evaluate_and_promote] STDOUT:\n{result.stdout}")
+            print(f"[evaluate_and_promote] STDERR:\n{result.stderr}")
+            raise subprocess.CalledProcessError(result.returncode, result.args)
+    except subprocess.CalledProcessError as e:
+        print(f"[evaluate_and_promote] ERRORE durante l'esecuzione: {e}")
+        raise
 
 
 def _noop():
@@ -221,7 +247,8 @@ with DAG(
     t_train = PythonOperator(task_id="train", python_callable=train)
     t_train_smoke = PythonOperator(task_id="train_smoke", python_callable=train_smoke)
     t_eval = PythonOperator(
-        task_id="evaluate_and_promote", python_callable=evaluate_and_promote
+        task_id="evaluate_and_promote", python_callable=evaluate_and_promote,
+        trigger_rule="none_failed_or_skipped"
     )
     t_finish = PythonOperator(task_id="finish", python_callable=_noop)
 

@@ -22,7 +22,11 @@ def _predict_df(model, df: pd.DataFrame) -> list[str]:
     preds = []
     for text in df["text"].tolist():
         out = model.predict([text])[0]
-        preds.append(_normalize(out["label"]))
+        # out può essere una stringa (sklearn) o un dict con "label" (transformers)
+        if isinstance(out, dict):
+            preds.append(_normalize(out["label"]))
+        else:
+            preds.append(_normalize(out))
     return preds
 
 
