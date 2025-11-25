@@ -22,21 +22,14 @@ app = FastAPI()
 # ====================================================
 # 2) Poi si definiscono le metriche
 # ====================================================
-REQUEST_COUNT = Counter(
-    "app_requests_total", "Total prediction requests"
-)
+REQUEST_COUNT = Counter("app_requests_total", "Total prediction requests")
 
-ERROR_COUNT = Counter(
-    "app_errors_total", "Total prediction errors"
-)
+ERROR_COUNT = Counter("app_errors_total", "Total prediction errors")
 
-REQUEST_LATENCY = Histogram(
-    "app_request_latency_seconds", "Prediction latency"
-)
+REQUEST_LATENCY = Histogram("app_request_latency_seconds", "Prediction latency")
 
-DRIFT_FLAG = Gauge(
-    "data_drift_flag", "1 if drift detected else 0"
-)
+DRIFT_FLAG = Gauge("data_drift_flag", "1 if drift detected else 0")
+
 
 # ====================================================
 # 3) Solo ORA: startup event

@@ -6,7 +6,7 @@ import glob
 import subprocess
 from airflow import DAG
 from airflow.models import Variable
-from airflow.operators.python import PythonOperator 
+from airflow.operators.python import PythonOperator
 from airflow.operators.python import BranchPythonOperator
 from airflow.utils import timezone as tz
 
@@ -172,7 +172,9 @@ def train_smoke(ti=None):
     dev_model_name = f"{MODEL_NAME}{dev_suffix}"
     versions = client.search_model_versions(f"name='{dev_model_name}'")
     if not versions:
-        raise RuntimeError(f"Nessuna versione trovata per il modello '{dev_model_name}'")
+        raise RuntimeError(
+            f"Nessuna versione trovata per il modello '{dev_model_name}'"
+        )
     latest = max(versions, key=lambda v: int(v.version))
     new_uri = f"models:/{dev_model_name}/{int(latest.version)}"
     if ti:
@@ -251,8 +253,9 @@ with DAG(
     t_train = PythonOperator(task_id="train", python_callable=train)
     t_train_smoke = PythonOperator(task_id="train_smoke", python_callable=train_smoke)
     t_eval = PythonOperator(
-        task_id="evaluate_and_promote", python_callable=evaluate_and_promote,
-        trigger_rule="none_failed_or_skipped"
+        task_id="evaluate_and_promote",
+        python_callable=evaluate_and_promote,
+        trigger_rule="none_failed_or_skipped",
     )
     t_finish = PythonOperator(task_id="finish", python_callable=_noop)
 

@@ -24,7 +24,11 @@ def test__train_sklearn_model_invalid_columns(tmp_path):
 
 
 def test__train_sklearn_model_valid(tmp_path):
-    rows = [["I love this", "positive"], ["I hate this", "negative"], ["meh", "neutral"]]
+    rows = [
+        ["I love this", "positive"],
+        ["I hate this", "negative"],
+        ["meh", "neutral"],
+    ]
     path = _write_csv(tmp_path, rows)
     clf, vec, metrics = train_roberta._train_sklearn_model(path)
     assert hasattr(clf, "predict")
@@ -34,7 +38,11 @@ def test__train_sklearn_model_valid(tmp_path):
 
 
 def test_main_with_train_csv_logs(monkeypatch, tmp_path):
-    rows = [["I love this", "positive"], ["I hate this", "negative"], ["meh", "neutral"]]
+    rows = [
+        ["I love this", "positive"],
+        ["I hate this", "negative"],
+        ["meh", "neutral"],
+    ]
     path = _write_csv(tmp_path, rows)
 
     called = {}
@@ -78,9 +86,10 @@ def test_main_with_train_csv_logs(monkeypatch, tmp_path):
     assert ret == 0
     assert called.get("log_model", 0) >= 1
     assert "train_csv" in [p[0][0] for p in called.get("log_param", [])]
-    assert any(k in [m[0][0] for m in called.get("log_metric", []) if m] for k in ["train_size"]) or called.get(
-        "log_metric"
-    )
+    assert any(
+        k in [m[0][0] for m in called.get("log_metric", []) if m]
+        for k in ["train_size"]
+    ) or called.get("log_metric")
 
 
 class DummyRun:
@@ -101,14 +110,26 @@ def _write_csv(tmp_path, name, rows):
 
 
 def test_main_with_train_csv(monkeypatch, tmp_path):
-    csv = _write_csv(tmp_path, "train.csv", [["hello there", "positive"], ["this is bad", "negative"]])
+    csv = _write_csv(
+        tmp_path,
+        "train.csv",
+        [["hello there", "positive"], ["this is bad", "negative"]],
+    )
     calls = {"pyfunc": 0, "sklearn": 0}
 
     monkeypatch.setattr(train_roberta, "get_or_create_experiment", lambda x: "expid")
     monkeypatch.setattr(mlflow, "set_experiment", lambda x: None)
     monkeypatch.setattr(mlflow, "start_run", lambda experiment_id=None: DummyRun())
-    monkeypatch.setattr(mlflow.pyfunc, "log_model", lambda **kwargs: calls.__setitem__("pyfunc", calls["pyfunc"] + 1))
-    monkeypatch.setattr(mlflow.sklearn, "log_model", lambda **kwargs: calls.__setitem__("sklearn", calls["sklearn"] + 1))
+    monkeypatch.setattr(
+        mlflow.pyfunc,
+        "log_model",
+        lambda **kwargs: calls.__setitem__("pyfunc", calls["pyfunc"] + 1),
+    )
+    monkeypatch.setattr(
+        mlflow.sklearn,
+        "log_model",
+        lambda **kwargs: calls.__setitem__("sklearn", calls["sklearn"] + 1),
+    )
     monkeypatch.setattr(mlflow, "log_param", lambda *args, **kwargs: None)
     monkeypatch.setattr(mlflow, "log_metric", lambda *args, **kwargs: None)
 
@@ -135,7 +156,11 @@ def test_main_without_train_csv(monkeypatch):
     monkeypatch.setattr(train_roberta, "get_or_create_experiment", lambda x: "expid")
     monkeypatch.setattr(mlflow, "set_experiment", lambda x: None)
     monkeypatch.setattr(mlflow, "start_run", lambda experiment_id=None: DummyRun())
-    monkeypatch.setattr(mlflow.pyfunc, "log_model", lambda **kwargs: calls.__setitem__("pyfunc", calls["pyfunc"] + 1))
+    monkeypatch.setattr(
+        mlflow.pyfunc,
+        "log_model",
+        lambda **kwargs: calls.__setitem__("pyfunc", calls["pyfunc"] + 1),
+    )
     monkeypatch.setattr(mlflow, "log_param", lambda *args, **kwargs: None)
     monkeypatch.setattr(mlflow, "log_metric", lambda *args, **kwargs: None)
 

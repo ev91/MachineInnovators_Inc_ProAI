@@ -10,6 +10,7 @@ Usage:
 The script is intentionally lightweight and avoids heavy imports (transformers)
 so it can run in limited resource environments.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -43,8 +44,13 @@ def _train_sklearn_model(csv_path: str) -> Tuple[object, dict]:
     return pipeline, metrics
 
 
-def main(experiment: str = "sentiment", train_csv: str | None = None, n_samples: int = 1, dev_suffix: str = "-dev") -> int:
-    #exp_id = get_or_create_experiment(experiment)
+def main(
+    experiment: str = "sentiment",
+    train_csv: str | None = None,
+    n_samples: int = 1,
+    dev_suffix: str = "-dev",
+) -> int:
+    # exp_id = get_or_create_experiment(experiment)
     get_or_create_experiment(experiment)
     mlflow.set_experiment(experiment)
 
@@ -59,7 +65,9 @@ def main(experiment: str = "sentiment", train_csv: str | None = None, n_samples:
         elif os.path.exists(HOLDOUT):
             train_csv = HOLDOUT
         else:
-            raise FileNotFoundError("No train_csv specified and no current/holdout CSV found")
+            raise FileNotFoundError(
+                "No train_csv specified and no current/holdout CSV found"
+            )
 
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".csv")
     try:
@@ -96,8 +104,18 @@ def main(experiment: str = "sentiment", train_csv: str | None = None, n_samples:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--experiment", default="sentiment")
-    parser.add_argument("--train_csv", default=None, help="Path to CSV with columns text,label")
-    parser.add_argument("--n_samples", default=1, type=int, help="Number of rows to sample from head")
-    parser.add_argument("--dev_suffix", default="-dev", help="Suffix to append to REGISTERED_NAME for dev models")
+    parser.add_argument(
+        "--train_csv", default=None, help="Path to CSV with columns text,label"
+    )
+    parser.add_argument(
+        "--n_samples", default=1, type=int, help="Number of rows to sample from head"
+    )
+    parser.add_argument(
+        "--dev_suffix",
+        default="-dev",
+        help="Suffix to append to REGISTERED_NAME for dev models",
+    )
     args = parser.parse_args()
-    raise SystemExit(main(args.experiment, args.train_csv, args.n_samples, args.dev_suffix))
+    raise SystemExit(
+        main(args.experiment, args.train_csv, args.n_samples, args.dev_suffix)
+    )

@@ -101,9 +101,11 @@ def main(ref_csv: str, cur_csv: str, out_dir: str = "artifacts") -> int:
     # HTML placeholder to avoid breaking viewers expecting a file
     html_path = os.path.join(out_dir, "drift_report.html")
     with open(html_path, "w") as f:
-        f.write("<html><body><pre>{}</pre></body></html>".format(
-            json.dumps(summary, indent=2)
-        ))
+        f.write(
+            "<html><body><pre>{}</pre></body></html>".format(
+                json.dumps(summary, indent=2)
+            )
+        )
 
     return drift_flag
 

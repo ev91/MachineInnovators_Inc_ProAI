@@ -83,6 +83,8 @@ def main(experiment: str = "sentiment", train_csv: str | None = None) -> int:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--experiment", default="sentiment")
-    parser.add_argument("--train_csv", default=None, help="CSV per training con colonne: text,label")
+    parser.add_argument(
+        "--train_csv", default=None, help="CSV per training con colonne: text,label"
+    )
     args = parser.parse_args()
     raise SystemExit(main(args.experiment, args.train_csv))

@@ -11,7 +11,11 @@ def _write(tmp_path, name, rows):
 
 def test_drift_detected_on_length_and_label(tmp_path):
     ref = _write(tmp_path, "ref.csv", [["short", "positive"], ["tiny", "negative"]])
-    cur = _write(tmp_path, "cur.csv", [["this is a very very long off-topic text", "neutral"]] * 5)
+    cur = _write(
+        tmp_path,
+        "cur.csv",
+        [["this is a very very long off-topic text", "neutral"]] * 5,
+    )
 
     code = drift_report.main(ref, cur, out_dir=tmp_path)
     assert code == 1
