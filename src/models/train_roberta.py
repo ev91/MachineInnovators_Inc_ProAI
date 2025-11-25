@@ -15,6 +15,17 @@ import src.utils.mlflow_utils as mlflow_utils
 MODEL_ID = "cardiffnlp/twitter-roberta-base-sentiment-latest"
 
 
+def get_or_create_experiment(name: str) -> str:
+    """Wrapper around mlflow_utils.get_or_create_experiment.
+
+    This wrapper exists so tests can monkeypatch either
+    `src.models.train_roberta.get_or_create_experiment` or
+    `src.utils.mlflow_utils.get_or_create_experiment` depending on how the
+    module is imported in the test. It simply delegates to the utility.
+    """
+    return mlflow_utils.get_or_create_experiment(name)
+
+
 class HFTextClassifier(mlflow.pyfunc.PythonModel):
     def load_context(self, context):
         self.tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
@@ -91,14 +102,3 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     raise SystemExit(main(args.experiment, args.train_csv))
-
-
-def get_or_create_experiment(name: str) -> str:
-    """Wrapper around mlflow_utils.get_or_create_experiment.
-
-    This wrapper exists so tests can monkeypatch either
-    `src.models.train_roberta.get_or_create_experiment` or
-    `src.utils.mlflow_utils.get_or_create_experiment` depending on how the
-    module is imported in the test. It simply delegates to the utility.
-    """
-    return mlflow_utils.get_or_create_experiment(name)

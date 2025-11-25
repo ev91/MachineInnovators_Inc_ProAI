@@ -119,10 +119,12 @@ def train(ti=None):
     env = os.environ.copy()
     env["MLFLOW_TRACKING_URI"] = MLFLOW
     # 1) esegui il training (registra nuova versione nel Registry)
-    subprocess.check_call(
-        ["python", "-m", "src.models.train_roberta", "--experiment", "sentiment"],
-        env=env,
-    )
+    cmd = ["python", "-m", "src.models.train_roberta", "--experiment", "sentiment"]
+    result = subprocess.run(cmd, env=env, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"[train] STDOUT:\n{result.stdout}")
+        print(f"[train] STDERR:\n{result.stderr}")
+        raise subprocess.CalledProcessError(result.returncode, result.args)
     # 2) risali alla ULTIMA versione registrata e mettila in XCom
     from mlflow.tracking import MlflowClient
 
