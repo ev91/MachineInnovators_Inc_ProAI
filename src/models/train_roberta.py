@@ -52,14 +52,18 @@ def _train_sklearn_model(csv_path: str):
 
 
 def main(experiment: str = "sentiment", train_csv: str | None = None) -> int:
-    exp_id = get_or_create_experiment(experiment)
-    mlflow.set_experiment(experiment)
     # If a train CSV is given, run the small training loop (sklearn)
     sklearn_model = None
     vectorizer = None
     metrics = {}
     if train_csv:
+        # validate / train on the provided CSV before contacting MLflow
         sklearn_model, vectorizer, metrics = _train_sklearn_model(train_csv)
+
+    # Create/ensure experiment only when ready to log (avoids network calls on invalid CSV)
+    # exp_id = get_or_create_experiment(experiment)
+    get_or_create_experiment(experiment)
+    mlflow.set_experiment(experiment)
 
     with mlflow.start_run(experiment_id=exp_id) as run:
         mlflow.log_param("base_model", MODEL_ID)

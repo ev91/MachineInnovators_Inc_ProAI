@@ -103,14 +103,14 @@ class DummyRun:
         return False
 
 
-def _write_csv(tmp_path, name, rows):
+def _write_csv_named(tmp_path, name, rows):
     path = tmp_path / name
     pd.DataFrame(rows, columns=["text", "label"]).to_csv(path, index=False)
     return str(path)
 
 
 def test_main_with_train_csv(monkeypatch, tmp_path):
-    csv = _write_csv(
+    csv = _write_csv_named(
         tmp_path,
         "train.csv",
         [["hello there", "positive"], ["this is bad", "negative"]],
