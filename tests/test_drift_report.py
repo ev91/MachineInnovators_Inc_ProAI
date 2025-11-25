@@ -1,4 +1,3 @@
-import os
 import pandas as pd
 
 from src.monitoring import drift_report

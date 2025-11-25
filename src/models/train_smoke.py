@@ -44,7 +44,8 @@ def _train_sklearn_model(csv_path: str) -> Tuple[object, dict]:
 
 
 def main(experiment: str = "sentiment", train_csv: str | None = None, n_samples: int = 1, dev_suffix: str = "-dev") -> int:
-    exp_id = get_or_create_experiment(experiment)
+    #exp_id = get_or_create_experiment(experiment)
+    get_or_create_experiment(experiment)
     mlflow.set_experiment(experiment)
 
     DATA_DIR = os.getenv("DATA_DIR", "/opt/airflow/data")

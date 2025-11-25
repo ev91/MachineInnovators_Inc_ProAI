@@ -1,6 +1,10 @@
 # airflow/dags/retrain_sentiment_dag.py
 from datetime import datetime, timedelta
-import os, shutil, glob, subprocess, json
+import os
+import shutil
+import glob
+import subprocess
+import json
 from airflow import DAG
 from airflow.models import Variable
 from airflow.operators.python import PythonOperator 

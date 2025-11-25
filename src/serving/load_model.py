@@ -58,6 +58,9 @@ def _try_get_mlflow_model():
         try:
             _mlflow_model = mlflow.pyfunc.load_model(MODEL_URI)
         except Exception as e:
+            logger.warning(
+                "Could not load model from URI '%s': %s", MODEL_URI, e
+            )
             # niente Production o modello assente → fallback
             if STRICT_REGISTRY:
                 raise

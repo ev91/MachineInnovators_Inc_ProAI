@@ -1,7 +1,9 @@
 import pandas as pd
-import io
 import pytest
-
+import os
+import pandas as pd
+from types import SimpleNamespace
+import mlflow
 from src.models import train_roberta
 
 
@@ -44,9 +46,6 @@ def test_main_with_train_csv_logs(monkeypatch, tmp_path):
         "src.utils.mlflow_utils.get_or_create_experiment", lambda name: "fake_exp_id"
     )
 
-    # Patch mlflow functions to avoid side effects and capture calls
-    import mlflow
-
     def fake_log_model(*args, **kwargs):
         called.setdefault("log_model", 0)
         called["log_model"] += 1
@@ -84,11 +83,7 @@ def test_main_with_train_csv_logs(monkeypatch, tmp_path):
     assert any(k in [m[0][0] for m in called.get("log_metric", []) if m] for k in ["train_size"]) or called.get(
         "log_metric"
     )
-import os
-import pandas as pd
-from types import SimpleNamespace
 
-import mlflow
 
 from src.models import train_roberta
 

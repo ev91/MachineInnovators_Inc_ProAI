@@ -7,7 +7,7 @@ from prometheus_client import (
     generate_latest,
     CONTENT_TYPE_LATEST,
 )
-from fastapi import Request, Response
+from fastapi import Response
 from fastapi.routing import APIRouter
 
 REQUESTS = Counter("api_requests_total", "Total API requests", ["path", "method"])
