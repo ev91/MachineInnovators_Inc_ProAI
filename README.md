@@ -23,6 +23,40 @@ pip install -r requirements.txt
 uvicorn src.serving.app:app --reload --port 8000
 ```
 
+## Risoluzione problemi: Airflow webserver (Gunicorn PID stale)
+
+Se la UI di Airflow mostra errori tipo "Bad Gateway" o i log del webserver riportano "Already running on PID <n>" o "No response from gunicorn master", è possibile che sia presente un file pid obsoleto causato da un processo zombie.
+
+Controlli sicuri (da dentro il container `airflow` o con `docker compose exec`):
+
+1. Verifica il contenuto del pid file:
+```bash
+cat /opt/airflow/airflow-webserver.pid
+```
+
+2. Controlla lo stato del processo indicato (sostituisci `<PID>`):
+```bash
+cat /proc/<PID>/status
+# cerca la riga "State:"; se è "Z" significa zombie
+```
+
+3. Se il PID è zombie (stato `Z`) è sicuro rimuovere il file pid ed effettuare un riavvio del servizio Airflow; NON provare a killare il processo zombie.
+```bash
+rm -f /opt/airflow/airflow-webserver.pid
+docker compose restart airflow
+# oppure, se preferisci riavviare solo il webserver nel container:
+docker compose exec airflow supervisorctl restart airflow-webserver || true
+```
+
+4. Dopo il riavvio, controlla i log per assicurarti che Gunicorn abbia avviato il master correttamente:
+```bash
+docker compose logs --no-color --tail 200 airflow
+```
+
+Nota: rimuovere il pid file è appropriato solo se il PID corrispondente è effettivamente uno zombie o il file è chiaramente stale; se il processo è attivo e non è zombie, indaga il motivo dell'attività prima di rimuovere o interrompere processi in esecuzione.
+
+Se vuoi, posso applicare questa stessa sezione a un file separato di troubleshooting (`docs/troubleshooting.md`) invece che lasciarla nel `README.md`.
+
 ### docker (solo app)
 ```bash
 docker build -t machineinnovators_inc_proai -f docker/Dockerfile.app .
