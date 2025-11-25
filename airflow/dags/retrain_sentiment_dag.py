@@ -4,7 +4,6 @@ import os
 import shutil
 import glob
 import subprocess
-import json
 from airflow import DAG
 from airflow.models import Variable
 from airflow.operators.python import PythonOperator 
