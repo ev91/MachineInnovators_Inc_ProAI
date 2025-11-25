@@ -123,12 +123,12 @@ def test_main_with_train_csv(monkeypatch, tmp_path):
     monkeypatch.setattr(
         mlflow.pyfunc,
         "log_model",
-        lambda **kwargs: calls.__setitem__("pyfunc", calls["pyfunc"] + 1),
+        lambda *args, **kwargs: calls.__setitem__("pyfunc", calls["pyfunc"] + 1),
     )
     monkeypatch.setattr(
         mlflow.sklearn,
         "log_model",
-        lambda **kwargs: calls.__setitem__("sklearn", calls["sklearn"] + 1),
+        lambda *args, **kwargs: calls.__setitem__("sklearn", calls["sklearn"] + 1),
     )
     monkeypatch.setattr(mlflow, "log_param", lambda *args, **kwargs: None)
     monkeypatch.setattr(mlflow, "log_metric", lambda *args, **kwargs: None)
@@ -159,7 +159,7 @@ def test_main_without_train_csv(monkeypatch):
     monkeypatch.setattr(
         mlflow.pyfunc,
         "log_model",
-        lambda **kwargs: calls.__setitem__("pyfunc", calls["pyfunc"] + 1),
+        lambda *args, **kwargs: calls.__setitem__("pyfunc", calls["pyfunc"] + 1),
     )
     monkeypatch.setattr(mlflow, "log_param", lambda *args, **kwargs: None)
     monkeypatch.setattr(mlflow, "log_metric", lambda *args, **kwargs: None)

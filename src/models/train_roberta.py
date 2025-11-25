@@ -10,7 +10,7 @@ from transformers import (
     AutoModelForSequenceClassification,
     TextClassificationPipeline,
 )
-from src.utils.mlflow_utils import get_or_create_experiment, REGISTERED_NAME
+import src.utils.mlflow_utils as mlflow_utils
 
 MODEL_ID = "cardiffnlp/twitter-roberta-base-sentiment-latest"
 
@@ -74,7 +74,7 @@ def main(experiment: str = "sentiment", train_csv: str | None = None) -> int:
         mlflow.pyfunc.log_model(
             artifact_path="model",
             python_model=HFTextClassifier(),
-            registered_model_name=REGISTERED_NAME,
+            registered_model_name=mlflow_utils.REGISTERED_NAME,
         )
         # Log some metrics discovered in the CSV
         for k, v in metrics.items():
@@ -91,3 +91,14 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     raise SystemExit(main(args.experiment, args.train_csv))
+
+
+def get_or_create_experiment(name: str) -> str:
+    """Wrapper around mlflow_utils.get_or_create_experiment.
+
+    This wrapper exists so tests can monkeypatch either
+    `src.models.train_roberta.get_or_create_experiment` or
+    `src.utils.mlflow_utils.get_or_create_experiment` depending on how the
+    module is imported in the test. It simply delegates to the utility.
+    """
+    return mlflow_utils.get_or_create_experiment(name)
