@@ -27,7 +27,7 @@ jobs:
         run: ruff check . --exclude="*.ipynb"
 
       - name: Format check (black)
-        run: black --check .
+        run: black --check . --exclude='\\.ipynb$'
 
       - name: Unit Tests (pytest, excluding smoke)
         run: pytest -v tests/ --ignore=tests/test_smoke_integration.py
