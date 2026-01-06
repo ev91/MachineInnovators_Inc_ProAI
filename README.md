@@ -1,173 +1,346 @@
-# MLOps Sentiment – Milestone 1
+# MLOps Sentiment Analysis – Online Reputation Monitoring
 
-Service FastAPI che serve `cardiffnlp/twitter-roberta-base-sentiment-latest` con endpoint `/predict`, `/health`, `/metrics`.
+**Machine Innovators Inc.** – Piattaforma di monitoraggio del sentiment online con ritraining automatico, MLflow registry e dashboard di monitoring in tempo reale.
 
-## Notebook Colab (consegna)
-- [`notebooks/colab_delivery.ipynb`](notebooks/colab_delivery.ipynb): notebook pronto per Google Colab con i passaggi per clonare il repo, installare le dipendenze, addestrare una versione del modello, valutarla/promuoverla con MLflow file-based e testare l'inferenza.
-- Aprilo da GitHub con “Open in Colab” oppure caricalo su Drive; è autoconclusivo e usa i file già presenti nel repository (`data/holdout.csv`, ecc.).
+> **Modello**: [cardiffnlp/twitter-roberta-base-sentiment-latest](https://huggingface.co/cardiffnlp/twitter-roberta-base-sentiment-latest) (RoBERTa fine-tuned per sentiment su Twitter)
+>
+> **Nota sulla traccia**: La traccia dell'esame menziona FastText, ma il modello indicato nel link è RoBERTa. Il progetto utilizza il modello HuggingFace linkato per migliore accuracy su testi brevi e social media.
 
-## Documentazione di progetto
-- [docs/codebase_overview.md](docs/codebase_overview.md): mappa delle componenti con ruoli, flussi e riferimenti file-per-file.
+---
 
-## Avvio locale
+## 🚀 Quick Start (5 minuti)
 
-> Nota sui tempi: lo stack richiede ~60–90 secondi per partire completamente
-> (Airflow + MLflow + Grafana). La prima inferenza può impiegare qualche
-> secondo per il warm-up del modello Hugging Face; le successive sono quasi
-> immediate perché la pipeline resta in memoria.
+### Requisiti
+- **Docker** e **Docker Compose** (v2.0+)
+- **Python 3.10+** (opzionale, solo per esecuzione locale senza container)
 
-### app
+### Avvia lo stack completo
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn src.serving.app:app --reload --port 8000
-```
+# Clone e avvia
+git clone https://github.com/ev91/MachineInnovators_Inc_ProAI.git
+cd MachineInnovators_Inc_ProAI
 
-## Risoluzione problemi: Airflow webserver (Gunicorn PID stale)
+# Prepara variabili d'ambiente (opzionale, usa i default)
+# cp .env.example .env
 
-Se la UI di Airflow mostra errori tipo "Bad Gateway" o i log del webserver riportano "Already running on PID <n>" o "No response from gunicorn master", è possibile che sia presente un file pid obsoleto causato da un processo zombie.
-
-Controlli sicuri (da dentro il container `airflow` o con `docker compose exec`):
-
-1. Verifica il contenuto del pid file:
-```bash
-cat /opt/airflow/airflow-webserver.pid
-```
-
-2. Controlla lo stato del processo indicato (sostituisci `<PID>`):
-```bash
-cat /proc/<PID>/status
-# cerca la riga "State:"; se è "Z" significa zombie
-```
-
-3. Se il PID è zombie (stato `Z`) è sicuro rimuovere il file pid ed effettuare un riavvio del servizio Airflow; NON provare a killare il processo zombie.
-```bash
-rm -f /opt/airflow/airflow-webserver.pid
-docker compose restart airflow
-# oppure, se preferisci riavviare solo il webserver nel container:
-docker compose exec airflow supervisorctl restart airflow-webserver || true
-```
-
-4. Dopo il riavvio, controlla i log per assicurarti che Gunicorn abbia avviato il master correttamente:
-```bash
-docker compose logs --no-color --tail 200 airflow
-```
-
-Nota: rimuovere il pid file è appropriato solo se il PID corrispondente è effettivamente uno zombie o il file è chiaramente stale; se il processo è attivo e non è zombie, indaga il motivo dell'attività prima di rimuovere o interrompere processi in esecuzione.
-
-Se vuoi, posso applicare questa stessa sezione a un file separato di troubleshooting (`docs/troubleshooting.md`) invece che lasciarla nel `README.md`.
-
-### docker (solo app)
-```bash
-docker build -t machineinnovators_inc_proai -f docker/Dockerfile.app .
-docker run --rm -p 8000:8000 machineinnovators_inc_proai
-```
-
-### docker compose (stack con monitoring)
-```bash
+# Avvia il stack
 docker compose up --build
 ```
-- FastAPI: http://localhost:8000 (homepage risponde `{"message": "working!"}` se tutto è ok)
-- Prometheus: http://localhost:9090 (job `app` + scrape del Pushgateway)
-- Pushgateway: http://localhost:9091 (UI dedicata al buffer delle metriche pushate)
-- Grafana: http://localhost:3000 (admin/admin). Dashboard preconfigurata `MLOps – Sentiment App`.
 
-Le metriche esportate dalla app sono `app_requests_total`, `app_errors_total`,
-`app_request_latency_seconds` e `data_drift_flag`. Il DAG Airflow (task drift)
-invia `data_drift_flag` al Pushgateway, che viene scrappato da Prometheus e
-visualizzato in Grafana. Una spiegazione dettagliata dei pannelli e delle
-statistiche (p50/p90 della latenza, ecc.) è in
-[`docs/metrics_guide.md`](docs/metrics_guide.md).
-
-## Checklist di test rapida
-
-### 0) Pulizia (opzionale, se vuoi ripartire da zero)
-```bash
-docker compose down --volumes --remove-orphans
-docker system prune -f  # opzionale per pulire immagini non usate
+**Attendi ~60–90 secondi** finché tutti i servizi sono `running`:
+```
+✓ app (FastAPI)              → http://localhost:8000
+✓ mlflow (Model Registry)    → http://localhost:5000
+✓ airflow (Orchestration)    → http://localhost:8080
+✓ prometheus (Metrics DB)    → http://localhost:9090
+✓ grafana (Dashboards)       → http://localhost:3000
 ```
 
-### 1) Avvio stack completo
+### Test rapido dell'API
 ```bash
-docker compose up --build
-```
-Attendi che i log mostrino tutti i servizi in `running` (app, mlflow, airflow, prometheus, pushgateway, grafana).
+# Health check
+curl http://localhost:8000/health
 
-### 2) Test endpoint FastAPI
-- Healthcheck:
-```bash
-curl -f http://localhost:8000/health
-```
-- Inferenza (sostituisci il testo a piacere):
-```bash
+# Predizione di sentiment
 curl -X POST http://localhost:8000/predict \
   -H 'Content-Type: application/json' \
-  -d '{"text": "I love this product"}'
+  -d '{"text": "I love this product!"}'
 ```
 
-### 3) Metriche e Prometheus
-- Endpoint grezzo delle metriche esposte dalla app:
+---
+
+## 📖 Documentazione
+
+### Per sviluppatori/valuatori
+1. **[Panoramica della codebase](docs/codebase_overview.md)** – Architettura, componenti, flusso dati
+2. **[Metriche e Monitoring](docs/metrics_guide.md)** – Come leggere Prometheus/Grafana
+3. **[Training e Promozione Modello](docs/training_and_promotion.md)** – Flusso MLflow, retraining
+4. **[Simulazione Data Drift](docs/data_drift_simulation.md)** – Come testare il rilevamento drift
+5. **[Delivery Status](docs/DELIVERY_STATUS.md)** – Checklist consegna, componenti implementati, stato progetto
+
+### Per la consegna (Google Colab)
+👉 **[Notebook di consegna](notebooks/Deliverable_Colab.ipynb)** – Demo di inferenza, link al repo, istruzioni per lo stack completo.
+
+---
+
+## ⚙️ Configurazione
+
+### Variabili d'ambiente
+
+Tutte le porte e i percorsi dei modelli sono configurabili. Crea un file `.env` dal template:
+
 ```bash
-curl http://localhost:8000/metrics | head
+cp .env.example .env
 ```
-- Interfaccia web Prometheus: http://localhost:9090
-  1. **Status → Targets**: assicurati che i target `app` (8000) e `pushgateway` (9091) siano in stato `UP`. In alternativa, da terminale:
-     ```bash
-     curl "http://localhost:9090/api/v1/targets" | jq '.data.activeTargets[] | {job: .labels.job, health: .health, endpoint: .discoveredLabels.__address__}'
-     ```
-  2. **Graph**: inserisci la query `app_requests_total` e premi **Execute**. Se non vedi dati, manda una richiesta a `/predict` (punto 2) e ripremi **Execute**.
-     3. Per verificare la metrica di drift via API REST:
-     ```bash
-     curl "http://localhost:9090/api/v1/query?query=data_drift_flag"
-     ```
-- L'interfaccia celeste su http://localhost:9091 è il Pushgateway (buffer delle metriche pushate dal DAG), non un secondo Prometheus: è normale che mostri una UI diversa e minimale.
 
-### 4) Grafana
-- GUI: http://localhost:3000 (user/pass `admin` / `admin`).
-- Dashboard preprovisionata: `MLOps – Sentiment App`.
-- Dopo aver fatto almeno una richiesta a `/predict`, i pannelli su richieste/latency devono aggiornarsi.
-- Il pannello `data_drift_flag` si aggiorna quando il DAG Airflow invia la metrica al Pushgateway (vedi punto 6).
+Variabili principali:
 
-### 5) MLflow
-- GUI: http://localhost:5000
-- I run vengono creati dal DAG (train/evaluate) e sono salvati in `./mlruns`. Puoi verificare da UI che esperimenti e versioni del modello `Sentiment` siano presenti.
+| Variabile | Default | Descrizione |
+|-----------|---------|-------------|
+| `APP_PORT` | 8000 | Porta FastAPI |
+| `MLFLOW_PORT` | 5000 | Porta MLflow UI |
+| `AIRFLOW_PORT` | 8080 | Porta Airflow UI |
+| `PROM_PORT` | 9090 | Porta Prometheus |
+| `PUSHGATEWAY_PORT` | 9091 | Porta Pushgateway |
+| `GRAFANA_PORT` | 3000 | Porta Grafana |
+| `MODEL_URI` | _(vuoto)_ | URI MLflow (es. `models:/Sentiment/Production`) per servire il modello in Produzione |
+| `REGISTERED_MODEL_NAME` | `Sentiment` | Nome del modello nel registry MLflow |
 
-### 6) Airflow (DAG `retrain_sentiment`)
-- GUI: http://localhost:8080 (user/pass `admin` / `admin`). Attiva il DAG `retrain_sentiment` e avvia un run manuale.
-- Esecuzione rapida da terminale (senza passare dalla UI):
+Per dettagli completi vedi [.env.example](.env.example).
+
+---
+
+## 📊 Componenti dello stack
+
+### FastAPI (Serving)
+Espone tre endpoint principali:
+- **`GET /health`** – Health check (ritorna `{"status": "ok"}`)
+- **`POST /predict`** – Classifica sentiment (input: `{"text": "..."}`, output: `{"label": "positive|neutral|negative", "score": 0.0-1.0}`)
+- **`GET /metrics`** – Metriche Prometheus in formato standard
+
+Carica il modello dal registry MLflow (se `MODEL_URI` è impostato) oppure fallback automatico su HuggingFace.
+
+### MLflow (Model Registry)
+Gestisce le versioni del modello, stage (Production/Staging) e artefatti.
+- **UI**: http://localhost:5000
+- Credenziali: opzionali (default: nessuna autenticazione)
+
+### Airflow (Orchestration)
+DAG `retrain_sentiment` che automatizza il pipeline:
+1. **ingest** – Carica nuovi batch dati da `data/incoming/`
+2. **drift** – Rileva data drift confrontando distribuzioni
+3. **branch** – Decide se ritrainare (in base a drift, timer 7gg, o flag `force_retrain`)
+4. **train & evaluate** – Addestra e valuta il nuovo modello
+5. **promote** – Promuove a Production se migliore della versione corrente
+- **UI**: http://localhost:8080
+- Credenziali: `admin` / `admin`
+
+### Prometheus + Grafana (Monitoring)
+- **Prometheus**: http://localhost:9090 – database time-series
+- **Grafana**: http://localhost:3000 – dashboards
+  - Credenziali: `admin` / `admin`
+  - Dashboard preconfigurata: `MLOps – Sentiment App`
+
+Metriche raccolte:
+- `app_requests_total` – contatore richieste a `/predict`
+- `app_errors_total` – contatore errori
+- `app_request_latency_seconds` – istogramma latenza
+- `data_drift_flag` – gauge (0=no drift, 1=drift rilevato)
+
+---
+
+## ✅ Uso comune
+
+### Stack quickstart
+```bash
+# Opzione 1: Script
+./scripts/up.sh --build
+
+# Opzione 2: Docker compose diretto
+docker compose up --build
+```
+
+### Ferma stack
+```bash
+# Opzione 1: Script
+./scripts/down.sh
+
+# Opzione 2: Docker compose diretto
+docker compose down -v
+```
+
+### Visualizza log
+```bash
+./scripts/logs.sh              # Tutti i servizi
+./scripts/logs.sh app          # Solo app
+./scripts/logs.sh airflow      # Solo airflow
+```
+
+### Cleanup aggressivo
+```bash
+./scripts/clean-all.sh  # Rimuove tutto (WARNING: dati perduti)
+```
+
+Se preferisci sviluppare localmente:
+
+```bash
+# Setup ambiente
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+
+# Esegui app
+uvicorn src.serving.app:app --reload --port 8000
+
+# O per il training
+python -m src.models.train_roberta --experiment sentiment
+
+# O per i test
+pytest -v
+```
+
+### Test completo
+```bash
+pytest -v --tb=short
+```
+
+### Avvio manuale del DAG (dentro stack)
 ```bash
 docker compose exec airflow airflow dags test retrain_sentiment 2025-01-01
 ```
-## Dev/Smoke mode per retraining (demo)
-Per risparmiare risorse in fase di sviluppo e demo, è disponibile una modalità "dev/smoke" per il retraining:
 
-- Esecuzione: dalla GUI Airflow, quando fai "Trigger DAG" passa nel JSON: `{ "dev_smoke": true }` per far eseguire una versione rapida del training (script `train_smoke`).
-- Configurazione: puoi impostare la Variable Airflow `force_dev_smoke=true` per abilitare permanentemente la scelta di `train_smoke`.
-- Comportamento: `train_smoke` addestra un piccolo modello sklearn su una cima del CSV (head N rows) e registra una versione con suffisso `-dev` (es. `Sentiment-dev`) su MLflow, così **non** verrà automaticamente promossa a `Production`.
-- Parametri runtime: imposta `SMOKE_N_SAMPLES` env var per cambiare il numero di righe campionate. Default: `1`.
+### Forzare il ritraining
+Dalla UI Airflow, quando triggeri il DAG, passa nel JSON:
+```json
+{"force_retrain": true}
+```
 
-Nota: la modalità dev è pensata per test del flusso e demo; i modelli con suffisso `-dev` non sostituiscono la versione reale del modello di produzione.
-  - Il task `drift` genera la metrica `data_drift_flag` verso Pushgateway.
-  - I task `train` e `evaluate_and_promote` registrano ed eseguono il modello in MLflow.
+Oppure imposta la Variable `force_retrain=true` in Admin → Variables.
 
-**Come forzare il ramo di retrain anche senza drift**
-- Dalla UI, quando fai "Trigger DAG" aggiungi nel JSON di configurazione: `{ "force_retrain": true }`.
-- In alternativa (più persistente), imposta la Variable Airflow `force_retrain=true` da Admin → Variables.
-  - Entrambi i metodi fanno sì che il task `branch` scelga sempre `train` → `evaluate_and_promote` invece di fermarsi a `finish`.
+### Demo drift (innesca ritraining automatico)
+Il batch di drift è già pronto in `data/incoming/drift_example.csv`:
+```bash
+docker compose exec app ls data/incoming/drift_example.csv
+```
 
-Tip: se vuoi vedere il valore pubblicato in tempo reale dalla UI Prometheus, dopo aver lanciato il DAG vai su **Graph**, inserisci `data_drift_flag`, premi **Execute** e poi **(Graph)** in alto per visualizzare il punto.
+Vedi [docs/data_drift_simulation.md](docs/data_drift_simulation.md) per dettagli.
 
-### 7) Verifica metrica di drift
-- Dopo aver eseguito il DAG, controlla in Prometheus (UI o con curl):
+### Dev/Smoke mode (training rapido per test)
+```json
+{"dev_smoke": true}
+```
+
+Addestra un piccolo modello sklearn in pochi secondi (non promuove a Production). Vedi README Airflow per dettagli.
+
+---
+
+## 🐛 Risoluzione problemi
+
+### Stack non avvia
+```bash
+# Controlla i log
+docker compose logs -f
+
+# Verifica le porte
+lsof -i :8000  # app
+lsof -i :5000  # mlflow
+lsof -i :8080  # airflow
+
+# Se occupate: cambia in .env o uccidi il processo
+```
+
+### Airflow webserver "Bad Gateway"
+Stale PID file da riavvio anomalo:
+```bash
+docker compose exec airflow rm -f /opt/airflow/airflow-webserver.pid
+docker compose restart airflow
+```
+
+### Modello non carica in FastAPI
+```bash
+docker compose logs app | tail -50
+```
+
+Se `MODEL_URI` è impostato ma non esiste in MLflow, fallback automatico su HuggingFace.
+
+### Prima esecuzione lenta
+- **Prima inferenza**: ~5–10 sec (download + warm-up modello HF)
+- **Successive**: <1 sec (cache in memoria)
+
+### Porte occupate
+Se le porte di default sono occupate, modifica in `.env`:
+```bash
+APP_PORT=9000
+MLFLOW_PORT=6000
+# ... etc
+```
+
+Poi ricrea: `docker compose down && docker compose up --build`
+
+---
+
+## 🎯 Per la valutazione
+
+### Checklist di valutazione
+1. ✅ **CI passante**: [.github/workflows/ci.yml](.github/workflows/ci.yml) – lint, test pytest e smoke test docker compose
+2. ✅ **Stack reproducibile**: `docker compose up --build` parte pulito e tutti i servizi raggiungibili
+3. ✅ **Smoke test**: Test di integrazione che verifica `/health` e `/predict` con il container vero
+4. ✅ **Notebook Colab**: [Deliverable_Colab.ipynb](notebooks/Deliverable_Colab.ipynb) con link repo + demo inferenza
+5. ✅ **Monitoring**: Prometheus + Grafana con metriche e drift flag in real-time
+6. ✅ **Retraining**: DAG Airflow con logica di branch drift-driven e promotion automatica
+7. ✅ **Documentazione**: Architettura, setup, troubleshooting, flusso training ben spiegati
+
+### Screenshot e verifiche rapide
+
+**MLflow Registry**:
+- Vai su http://localhost:5000 → Models → Sentiment
+- Osserva versioni e stage (Production/Staging/None)
+
+**Grafana Dashboard**:
+- http://localhost:3000 → Dashboard "MLOps – Sentiment App"
+- Osserva request volume, latency (p50/p90), drift flag
+- Manda una richiesta a `/predict` → vedi le metriche aggiornarsi in real-time
+
+**Airflow DAG**:
+- http://localhost:8080 → DAG `retrain_sentiment`
+- Trigger manuale (tasto play) → osserva gli output nei log
+- Vedi MLflow e Prometheus aggiornati
+
+**Prometheus Queries**:
 ```bash
 curl "http://localhost:9090/api/v1/query?query=data_drift_flag"
+curl "http://localhost:9090/api/v1/query?query=app_requests_total"
 ```
-- In Grafana, il pannello `Data Drift Flag` dovrebbe mostrare il valore appena pubblicato.
 
-### 8) Simulare un data drift per innescare il retraining
-- È già pronto un batch “estremo” in `data/incoming/drift_example.csv` con testi lunghi/off-topic che dovrebbero far rilevare drift.
-- Attiva e triggera il DAG `retrain_sentiment`: il task `ingest` userà quel batch e il ramo `train -> evaluate_and_promote` verrà eseguito.
-- Dettagli e alternative (creare un batch personalizzato) in `docs/data_drift_simulation.md`.
+## 📸 Evidenze (screenshots)
 
-### 9) Capire come scegliamo e swappiamo il modello
-- Il flusso completo di training, valutazione (macro-F1 su `data/holdout.csv`) e promozione a `Production` è spiegato in `docs/training_and_promotion.md`.
+Di seguito sono riportate alcune schermate esemplificative presenti in `docs/screenshots/` utili all'evaluazione:
+
+- ![Airflow DAG](docs/screenshots/Schermata%20Airflow.png) — Airflow: vista del DAG `retrain_sentiment` dopo un run, utile per verificare che i task (ingest/drift/train/evaluate) siano stati eseguiti correttamente.
+- ![Grafana Dashboard](docs/screenshots/Schermata%20Grafana.png) — Grafana: dashboard "MLOps – Sentiment App" con pannelli su request volume, latenza (p50/p90) e `data_drift_flag`.
+- ![MLflow Registry](docs/screenshots/Schermata%20MLFlow.png) — MLflow: Model Registry che mostra le versioni del modello `Sentiment` e gli stage (Production/Staging/None).
+- ![GitHub Actions CI](docs/screenshots/Schermata%20Github%20Actions.png) — GitHub Actions: esempio di run CI (lint, unit tests, smoke test) come prova della pipeline su push/PR.
+
+---
+
+## 🔧 Comandi utili
+
+### Cleanup completo
+```bash
+docker compose down --volumes --remove-orphans
+docker system prune -f
+```
+
+### Visualizza i log di un servizio
+```bash
+docker compose logs -f app
+docker compose logs -f airflow
+docker compose logs -f mlflow
+```
+
+### Esecuzione delle singole task Airflow
+```bash
+# Ingest dati
+docker compose exec airflow airflow tasks test retrain_sentiment ingest 2025-01-01
+
+# Drift detection
+docker compose exec airflow airflow tasks test retrain_sentiment drift 2025-01-01
+
+# Training
+docker compose exec airflow airflow tasks test retrain_sentiment train 2025-01-01
+```
+
+---
+
+## 📝 Note sul timing
+
+> Lo stack richiede **~60–90 secondi** per partire completamente (Airflow + MLflow + Grafana).
+> La prima inferenza può impiegare **5–10 secondi** per il download e warm-up del modello HuggingFace;
+> le successive sono **<1 secondo** perché la pipeline resta in memoria.
+
+---
+
+## 📜 Licenza e contributi
+
+Progetto sviluppato per **Machine Innovators Inc.** come esercitazione MLOps.
+
+Per domande o contributi, apri una issue su GitHub.

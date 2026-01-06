@@ -15,9 +15,12 @@ services:
       - ./mlruns:/mlruns
     ports:
       - "${MLFLOW_PORT:-5000}:5000"
-    # disabilito healthcheck per non avere rotture nel dev script
     healthcheck:
-      disable: true
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
   # ----------------------------------------------------
   # One-off: inizializza DB Airflow + utente admin
@@ -93,6 +96,12 @@ services:
         airflow webserver --port 8080 --hostname 0.0.0.0 &
         airflow scheduler
       "
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   # ----------------------------------------------------
   # FastAPI app (serving modello)
@@ -109,6 +118,12 @@ services:
     command: uvicorn src.serving.app:app --host 0.0.0.0 --port 8000
     depends_on:
       - mlflow
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   prometheus:
     image: prom/prometheus:v2.55.1
