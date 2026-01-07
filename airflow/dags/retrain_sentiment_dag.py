@@ -209,6 +209,10 @@ def evaluate_and_promote(ti=None):
 
     env = os.environ.copy()
     env["MLFLOW_TRACKING_URI"] = MLFLOW
+    
+    # File temporaneo per catturare le metriche
+    metrics_file = "/tmp/model_metrics.json"
+    
     try:
         result = subprocess.run(
             [
@@ -221,6 +225,8 @@ def evaluate_and_promote(ti=None):
                 HOLDOUT,
                 "--min_improvement",
                 "0.0",
+                "--metrics_output",
+                metrics_file,
             ],
             env=env,
             capture_output=True,
@@ -230,6 +236,47 @@ def evaluate_and_promote(ti=None):
             print(f"[evaluate_and_promote] STDOUT:\n{result.stdout}")
             print(f"[evaluate_and_promote] STDERR:\n{result.stderr}")
             raise subprocess.CalledProcessError(result.returncode, result.args)
+        
+        # Estrai le metriche dal JSON
+        import json
+        if os.path.exists(metrics_file):
+            with open(metrics_file, "r") as f:
+                metrics = json.load(f)
+            
+            f1_score = metrics.get("new_f1", 0.0)
+            accuracy = metrics.get("new_accuracy", 0.0)
+            version = metrics.get("new_version", 1)
+            
+            print(f"[evaluate_and_promote] F1={f1_score}, Accuracy={accuracy}, Version={version}")
+            
+            # Push delle metriche a Prometheus
+            try:
+                subprocess.check_call(
+                    [
+                        "python",
+                        "-m",
+                        "src.monitoring.push_model_metrics",
+                        "--gateway",
+                        "http://pushgateway:9091",
+                        "--job",
+                        "model_performance",
+                        "--instance",
+                        "airflow",
+                        "--model_name",
+                        MODEL_NAME,
+                        "--model_version",
+                        str(version),
+                        "--f1_score",
+                        str(f1_score),
+                        "--accuracy",
+                        str(accuracy),
+                    ],
+                    env=env,
+                )
+                print("[evaluate_and_promote] Metriche pushate a Prometheus")
+            except Exception as e:
+                print(f"[evaluate_and_promote] pushgateway WARN: {e}")
+        
     except subprocess.CalledProcessError as e:
         print(f"[evaluate_and_promote] ERRORE durante l'esecuzione: {e}")
         raise

@@ -28,6 +28,12 @@ ERROR_COUNT = Counter("app_errors_total", "Total prediction errors")
 
 REQUEST_LATENCY = Histogram("app_request_latency_seconds", "Prediction latency")
 
+SENTIMENT_PREDICTIONS = Counter(
+    "app_sentiment_predictions_total",
+    "Total sentiment predictions by label",
+    ["sentiment_label"]
+)
+
 DRIFT_FLAG = Gauge("data_drift_flag", "1 if drift detected else 0")
 
 
@@ -52,6 +58,7 @@ def predict(item: Item):
     try:
         label, score = predict_fn(item.text)
         REQUEST_COUNT.inc()
+        SENTIMENT_PREDICTIONS.labels(sentiment_label=label).inc()
         return {"label": label, "score": score}
     except Exception as e:
         ERROR_COUNT.inc()

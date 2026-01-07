@@ -119,13 +119,15 @@ DAG `retrain_sentiment` che automatizza il pipeline:
 - **Prometheus**: http://localhost:9090 – database time-series
 - **Grafana**: http://localhost:3000 – dashboards
   - Credenziali: `admin` / `admin`
-  - Dashboard preconfigurata: `MLOps – Sentiment App`
+  - Dashboard preconfigurata: `MLOps – Sentiment Analysis Monitoring`
 
 Metriche raccolte:
-- `app_requests_total` – contatore richieste a `/predict`
-- `app_errors_total` – contatore errori
-- `app_request_latency_seconds` – istogramma latenza
-- `data_drift_flag` – gauge (0=no drift, 1=drift rilevato)
+- **API Traffic**: `app_requests_total`, `app_errors_total`, `app_request_latency_seconds`
+- **Sentiment Analysis**: `app_sentiment_predictions_total` (per label: positive/neutral/negative) – traccia il sentiment della community nel tempo
+- **Model Performance**: `model_f1_score`, `model_accuracy` – metriche aggiornate dopo ogni retraining
+- **Data Drift**: `data_drift_flag` – gauge (0=no drift, 1=drift rilevato) che trigga il retraining automatico
+
+Per dettagli su come leggere i pannelli, vedi [docs/metrics_guide.md](docs/metrics_guide.md).
 
 ---
 
