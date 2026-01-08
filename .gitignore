@@ -1,3 +1,24 @@
 __pycache__/
 *.py[cod]
 *.so
+# MLflow artifacts e database
+mlflow.db
+mlruns/
+*.egg-info/
+.mlflow/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.env.local

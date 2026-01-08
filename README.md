@@ -115,6 +115,8 @@ DAG `retrain_sentiment` che automatizza il pipeline:
 - **UI**: http://localhost:8080
 - Credenziali: `admin` / `admin`
 
+> **⚠️ Nota sul training**: A causa delle risorse limitate disponibili, il training del modello dal DAG viene eseguito su un **dataset molto ridotto** (~100-200 sample). Questo permette iterazioni veloci per dimostrare il flusso MLOps (drift detection, retraining, promozione) senza richiedere hardware potente. Per un deployment in produzione, aumentare la dimensione del dataset in `data/raw/` e i sample usati nel DAG di Airflow.
+
 ### Prometheus + Grafana (Monitoring)
 - **Prometheus**: http://localhost:9090 – database time-series
 - **Grafana**: http://localhost:3000 – dashboards
@@ -295,12 +297,58 @@ curl "http://localhost:9090/api/v1/query?query=app_requests_total"
 
 ## 📸 Evidenze (screenshots)
 
-Di seguito sono riportate alcune schermate esemplificative presenti in `docs/screenshots/` utili all'evaluazione:
+### Airflow DAG – Orchestrazione con Drift Detection
 
-- ![Airflow DAG](docs/screenshots/Schermata%20Airflow.png) — Airflow: vista del DAG `retrain_sentiment` dopo un run, utile per verificare che i task (ingest/drift/train/evaluate) siano stati eseguiti correttamente.
-- ![Grafana Dashboard](docs/screenshots/Schermata%20Grafana.png) — Grafana: dashboard "MLOps – Sentiment App" con pannelli su request volume, latenza (p50/p90) e `data_drift_flag`.
-- ![MLflow Registry](docs/screenshots/Schermata%20MLFlow.png) — MLflow: Model Registry che mostra le versioni del modello `Sentiment` e gli stage (Production/Staging/None).
-- ![GitHub Actions CI](docs/screenshots/Schermata%20Github%20Actions.png) — GitHub Actions: esempio di run CI (lint, unit tests, smoke test) come prova della pipeline su push/PR.
+![Airflow DAG - No Drift](notebooks/images/airflow_no_drift_log.png)
+
+Airflow DAG `retrain_sentiment` in esecuzione senza drift rilevato. Mostra i task (ingest → drift → branch → train → evaluate_and_promote) completati con successo.
+
+Quando viene rilevato data drift, il DAG innesca automaticamente il retraining:
+
+![Airflow DAG - With Drift](notebooks/images/airflow_drift_log.png)
+![Airflow Graph - With Drift](notebooks/images/airflow_drift_graph.png)
+
+I log di ogni task mostrano il flusso di esecuzione, gli artefatti generati e i parametri passati al modello.
+
+### Grafana Dashboard – Monitoraggio Continuo
+
+![Grafana Dashboards Overview](notebooks/images/grafana_dashboards.png)
+
+Dashboard principale "MLOps – Sentiment Analysis Monitoring" con visibilità continua su request volume, latency (p50/p90), sentiment distribution e metriche di performance del modello.
+
+![Grafana Model Scores](notebooks/images/grafana_scores.png)
+
+Metriche di performance del modello (F1 & Accuracy) aggiornate dopo ogni retraining.
+
+**Data Drift Detection** (componente chiave della continuous monitoring):
+
+![Grafana No Drift](notebooks/images/grafana_no_drift.png)
+
+Nessun drift rilevato - il flag rimane a 0 (verde).
+
+![Grafana Drift Detected](notebooks/images/grafana_drift_flag.png)
+
+Quando viene rilevato data drift, il flag passa a 1 (rosso) e trigga automaticamente il retraining.
+
+### MLflow Model Registry – Versioning e Stage Management
+
+![MLflow Registry](notebooks/images/mlflow.png)
+
+Model Registry con tutte le versioni del modello `Sentiment`. Mostra versioni registrate, stage corrente (Production/Staging/None) e parametri di ogni run. Automaticamente aggiornato dal DAG di Airflow durante valutazione e promozione.
+
+### Prometheus – Time-Series Database per Metriche
+
+![Prometheus - App Requests Total](notebooks/images/prometheus_app_request_total.png)
+
+Database time-series che raccoglie tutte le metriche esposte da FastAPI: `app_requests_total`, `app_request_latency_seconds`, `app_sentiment_predictions_total`.
+
+![Prometheus - Drift Flag](notebooks/images/prometheus_drift_flag.png)
+
+Metriche per il monitoring del drift: `data_drift_flag` (0=no drift, 1=drift rilevato).
+
+![Pushgateway](notebooks/images/pushgateways.png)
+
+Il DAG di Airflow pushes le metriche di performance del modello (F1, accuracy) al Pushgateway, che le rende disponibili a Prometheus per la visualizzazione in Grafana.
 
 ---
 
