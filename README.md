@@ -350,6 +350,16 @@ Metriche per il monitoring del drift: `data_drift_flag` (0=no drift, 1=drift ril
 
 Il DAG di Airflow pushes le metriche di performance del modello (F1, accuracy) al Pushgateway, che le rende disponibili a Prometheus per la visualizzazione in Grafana.
 
+### GitHub Actions CI/CD Pipeline
+
+![GitHub Actions CI](notebooks/images/CI.png)
+
+Pipeline CI/CD automatica eseguita su ogni push/PR con:
+- **Linting** (ruff) – controlla la qualità del codice
+- **Unit Tests** (pytest) – verifica la correttezza dei moduli
+- **Smoke Test** (docker compose) – testa l'intero stack in containerization
+- Utile come prova che la pipeline è funzionante e mantenuta
+
 ---
 
 ## 🔧 Comandi utili
