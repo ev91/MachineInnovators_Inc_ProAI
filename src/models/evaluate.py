@@ -36,7 +36,7 @@ def evaluate_and_maybe_promote(
 ) -> dict:
     """
     Evaluate new model vs production and promote if better.
-    
+
     Returns:
         dict with evaluation metrics: {
             "new_f1": float,
@@ -115,14 +115,14 @@ if __name__ == "__main__":
         help="Path file JSON per salvare le metriche (opzionale)",
     )
     args = ap.parse_args()
-    
+
     metrics = evaluate_and_maybe_promote(
         args.new_model_uri, args.eval_csv, args.min_improvement
     )
-    
+
     # Stampa le metriche in JSON per cattura dal DAG
     print(f"METRICS_JSON: {json.dumps(metrics)}")
-    
+
     # Salva su file se richiesto
     if args.metrics_output:
         with open(args.metrics_output, "w") as f:

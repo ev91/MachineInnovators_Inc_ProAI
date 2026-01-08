@@ -54,9 +54,7 @@ def push_metrics(
 
     # Set values
     f1_gauge.labels(model_name=model_name, model_version=model_version).set(f1_score)
-    acc_gauge.labels(model_name=model_name, model_version=model_version).set(
-        accuracy
-    )
+    acc_gauge.labels(model_name=model_name, model_version=model_version).set(accuracy)
 
     # Push to gateway
     push_to_gateway(

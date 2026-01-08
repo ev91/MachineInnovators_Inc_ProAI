@@ -31,7 +31,7 @@ REQUEST_LATENCY = Histogram("app_request_latency_seconds", "Prediction latency")
 SENTIMENT_PREDICTIONS = Counter(
     "app_sentiment_predictions_total",
     "Total sentiment predictions by label",
-    ["sentiment_label"]
+    ["sentiment_label"],
 )
 
 DRIFT_FLAG = Gauge("data_drift_flag", "1 if drift detected else 0")
