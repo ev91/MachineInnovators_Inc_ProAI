@@ -24,7 +24,8 @@ cd MachineInnovators_Inc_ProAI
 # cp .env.example .env
 
 # Avvia il stack
-docker compose up --build
+./scripts/up.sh --build
+# Oppure manualmente: docker compose up --build
 ```
 
 **Attendi ~60–90 secondi** finché tutti i servizi sono `running`:
@@ -57,9 +58,6 @@ curl -X POST http://localhost:8000/predict \
 3. **[Training e Promozione Modello](docs/training_and_promotion.md)** – Flusso MLflow, retraining
 4. **[Simulazione Data Drift](docs/data_drift_simulation.md)** – Come testare il rilevamento drift
 5. **[Delivery Status](docs/DELIVERY_STATUS.md)** – Checklist consegna, componenti implementati, stato progetto
-
-### Per la consegna (Google Colab)
-👉 **[Notebook di consegna](notebooks/Deliverable_Colab.ipynb)** – Demo di inferenza, link al repo, istruzioni per lo stack completo.
 
 ---
 
@@ -115,7 +113,7 @@ DAG `retrain_sentiment` che automatizza il pipeline:
 - **UI**: http://localhost:8080
 - Credenziali: `admin` / `admin`
 
-> **⚠️ Nota sul training**: A causa delle risorse limitate disponibili, il training del modello dal DAG viene eseguito su un **dataset molto ridotto** (~100-200 sample). Questo permette iterazioni veloci per dimostrare il flusso MLOps (drift detection, retraining, promozione) senza richiedere hardware potente. Per un deployment in produzione, aumentare la dimensione del dataset in `data/raw/` e i sample usati nel DAG di Airflow.
+> **⚠️ Nota sul training**: Il training del modello dal DAG viene eseguito su un dataset ridotto, permettendo iterazioni veloci per dimostrare il flusso MLOps (drift detection, retraining, promozione) senza richiedere hardware potente.
 
 ### Prometheus + Grafana (Monitoring)
 - **Prometheus**: http://localhost:9090 – database time-series
@@ -170,11 +168,6 @@ docker compose down -v
 pytest -v --tb=short
 ```
 
-### Avvio manuale del DAG (dentro stack)
-```bash
-docker compose exec airflow airflow dags test retrain_sentiment 2025-01-01
-```
-
 ### Forzare il ritraining
 Puoi forzare il ritraining impostando la Variable Airflow da Admin → Variables:
 ```
@@ -182,22 +175,12 @@ Key: force_retrain
 Value: true
 ```
 
-Oppure imposta la Variable `force_retrain=true` in Admin → Variables.
-
-### Demo drift (innesca ritraining automatico)
-Il batch di drift è già pronto in `data/incoming/drift_example.csv`:
-```bash
-docker compose exec app ls data/incoming/drift_example.csv
-```
-
-Vedi [docs/data_drift_simulation.md](docs/data_drift_simulation.md) per dettagli.
-
 ### Dev/Smoke mode (training rapido per test)
-```json
-{"dev_smoke": true}
+Addestra un piccolo modello sklearn in pochi secondi (non promuove a Production) impostando la Variable Airflow da Admin → Variables:
 ```
-
-Addestra un piccolo modello sklearn in pochi secondi (non promuove a Production). Vedi README Airflow per dettagli.
+Key: dev_smoke
+Value: true
+```
 
 ---
 
