@@ -165,23 +165,6 @@ docker compose down -v
 ./scripts/clean-all.sh  # Rimuove tutto (WARNING: dati perduti)
 ```
 
-Se preferisci sviluppare localmente:
-
-```bash
-# Setup ambiente
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-
-# Esegui app
-uvicorn src.serving.app:app --reload --port 8000
-
-# O per il training
-python -m src.models.train_roberta --experiment sentiment
-
-# O per i test
-pytest -v
-```
-
 ### Test completo
 ```bash
 pytest -v --tb=short
@@ -193,9 +176,10 @@ docker compose exec airflow airflow dags test retrain_sentiment 2025-01-01
 ```
 
 ### Forzare il ritraining
-Dalla UI Airflow, quando triggeri il DAG, passa nel JSON:
-```json
-{"force_retrain": true}
+Puoi forzare il ritraining impostando la Variable Airflow da Admin → Variables:
+```
+Key: force_retrain
+Value: true
 ```
 
 Oppure imposta la Variable `force_retrain=true` in Admin → Variables.
@@ -217,85 +201,7 @@ Addestra un piccolo modello sklearn in pochi secondi (non promuove a Production)
 
 ---
 
-## 🐛 Risoluzione problemi
-
-### Stack non avvia
-```bash
-# Controlla i log
-docker compose logs -f
-
-# Verifica le porte
-lsof -i :8000  # app
-lsof -i :5000  # mlflow
-lsof -i :8080  # airflow
-
-# Se occupate: cambia in .env o uccidi il processo
-```
-
-### Airflow webserver "Bad Gateway"
-Stale PID file da riavvio anomalo:
-```bash
-docker compose exec airflow rm -f /opt/airflow/airflow-webserver.pid
-docker compose restart airflow
-```
-
-### Modello non carica in FastAPI
-```bash
-docker compose logs app | tail -50
-```
-
-Se `MODEL_URI` è impostato ma non esiste in MLflow, fallback automatico su HuggingFace.
-
-### Prima esecuzione lenta
-- **Prima inferenza**: ~5–10 sec (download + warm-up modello HF)
-- **Successive**: <1 sec (cache in memoria)
-
-### Porte occupate
-Se le porte di default sono occupate, modifica in `.env`:
-```bash
-APP_PORT=9000
-MLFLOW_PORT=6000
-# ... etc
-```
-
-Poi ricrea: `docker compose down && docker compose up --build`
-
----
-
-## 🎯 Per la valutazione
-
-### Checklist di valutazione
-1. ✅ **CI passante**: [.github/workflows/ci.yml](.github/workflows/ci.yml) – lint, test pytest e smoke test docker compose
-2. ✅ **Stack reproducibile**: `docker compose up --build` parte pulito e tutti i servizi raggiungibili
-3. ✅ **Smoke test**: Test di integrazione che verifica `/health` e `/predict` con il container vero
-4. ✅ **Notebook Colab**: [Deliverable_Colab.ipynb](notebooks/Deliverable_Colab.ipynb) con link repo + demo inferenza
-5. ✅ **Monitoring**: Prometheus + Grafana con metriche e drift flag in real-time
-6. ✅ **Retraining**: DAG Airflow con logica di branch drift-driven e promotion automatica
-7. ✅ **Documentazione**: Architettura, setup, troubleshooting, flusso training ben spiegati
-
-### Screenshot e verifiche rapide
-
-**MLflow Registry**:
-- Vai su http://localhost:5000 → Models → Sentiment
-- Osserva versioni e stage (Production/Staging/None)
-
-**Grafana Dashboard**:
-- http://localhost:3000 → Dashboard "MLOps – Sentiment App"
-- Osserva request volume, latency (p50/p90), drift flag
-- Manda una richiesta a `/predict` → vedi le metriche aggiornarsi in real-time
-
-**Airflow DAG**:
-- http://localhost:8080 → DAG `retrain_sentiment`
-- Trigger manuale (tasto play) → osserva gli output nei log
-- Vedi MLflow e Prometheus aggiornati
-
-**Prometheus Queries**:
-```bash
-curl "http://localhost:9090/api/v1/query?query=data_drift_flag"
-curl "http://localhost:9090/api/v1/query?query=app_requests_total"
-```
-
-## 📸 Evidenze (screenshots)
+##  Evidenze (screenshots)
 
 ### Airflow DAG – Orchestrazione con Drift Detection
 

@@ -4,14 +4,10 @@ Questa guida mostra come presentare rapidamente un caso di **drift rilevato** ch
 
 ## Opzione A – usare il batch già pronto
 1. C'è un batch "estremo" in `data/incoming/drift_example.csv` con testi molto lunghi e distribuzioni di etichette diverse dal reference; la logica di drift controlla sia la mediana della lunghezza sia la distanza tra distribuzioni di label.
-2. Avvia lo stack:
-   ```bash
-   docker compose up --build
-   ```
-3. Dalla UI Airflow (http://localhost:8080) attiva e triggera il DAG `retrain_sentiment` **senza** configurazione extra.
-   - Il task `ingest` copierà automaticamente `data/incoming/drift_example.csv` in `data/raw/current.csv`.
+2. Dalla UI Airflow (http://localhost:8080) attiva e triggera il DAG `retrain_sentiment` **senza** configurazione extra.
+   - Il task `ingest` copierà il file con data di modifica più recente da `data/incoming/` in `data/raw/current.csv` (di default questo sarà `data/incoming/drift_example.csv`).
    - Il task `drift` dovrebbe restituire `1` (drift rilevato) e pushare `data_drift_flag{job="retrain_sentiment",instance="airflow"}=1` sul Pushgateway.
-4. Verifica:
+3. Verifica:
    - In Prometheus: `curl "http://localhost:9090/api/v1/query?query=data_drift_flag"`
    - In Grafana: pannello **Data Drift Flag** nella dashboard `MLOps – Sentiment App`.
    - In Airflow: il ramo `train -> evaluate_and_promote` sarà eseguito (stato verde) invece di `finish`.
@@ -26,9 +22,7 @@ text,label
 "Super positive and overly enthusiastic essay that repeats compliments to skew the predicted labels toward positive.",positive
 TXT
 ```
-Poi rilancia il DAG `retrain_sentiment` (o usa `docker compose exec airflow airflow dags test retrain_sentiment 2025-01-02`). Il file in `data/incoming/` con ordine alfabetico più basso viene usato da `ingest`.
+Poi rilancia il DAG `retrain_sentiment` (o usa `docker compose exec airflow airflow dags test retrain_sentiment 2025-01-02`). Il file in `data/incoming/` con data di modifica più recente viene usato da `ingest`.
 
 ## Nota sul force retrain
-Se per qualunque motivo Evidently non restituisse drift (0), puoi comunque forzare il ramo di retraining:
-- Trigger DAG con configurazione JSON `{ "force_retrain": true }`, **oppure**
-- Imposta la Variable Airflow `force_retrain=true` da Admin → Variables.
+Se per qualunque motivo Evidently non restituisse drift (0), puoi comunque forzare il ramo di retraining impostando la Variable Airflow `force_retrain=true` da Admin → Variables.
