@@ -3,8 +3,6 @@
 **Machine Innovators Inc.** – Piattaforma di monitoraggio del sentiment online con ritraining automatico, MLflow registry e dashboard di monitoring in tempo reale.
 
 > **Modello**: [cardiffnlp/twitter-roberta-base-sentiment-latest](https://huggingface.co/cardiffnlp/twitter-roberta-base-sentiment-latest) (RoBERTa fine-tuned per sentiment su Twitter)
->
-> **Nota sulla traccia**: La traccia dell'esame menziona FastText, ma il modello indicato nel link è RoBERTa. Il progetto utilizza il modello HuggingFace linkato per migliore accuracy su testi brevi e social media.
 
 ---
 
